@@ -136,6 +136,68 @@ class Scout:
                 time.sleep(self._backoff_seconds(attempt, err))
                 attempt += 1
 
+    def stream(
+        self,
+        method: str,
+        path: str,
+        *,
+        body: Any = None,
+        query: Optional[Mapping[str, Any]] = None,
+        timeout: Optional[float] = None,
+        headers: Optional[Mapping[str, str]] = None,
+    ):
+        """Open a streaming (SSE) request and yield ``{"event", "data"}`` records.
+
+        Generator; not retried (streams are long-lived).
+        """
+        url = self._build_url(path, query)
+        body_bytes = (
+            json.dumps(body).encode("utf-8")
+            if body is not None and method != "GET"
+            else None
+        )
+        req_headers = self._build_headers(body_bytes, method != "GET", None, headers)
+        req_headers["Accept"] = "text/event-stream"
+        req = urllib.request.Request(
+            url, data=body_bytes, headers=req_headers, method=method
+        )
+        eff_timeout = self.timeout if timeout is None else timeout
+        try:
+            resp = urllib.request.urlopen(req, timeout=eff_timeout)
+        except urllib.error.HTTPError as e:
+            hdrs = {k.lower(): v for k, v in (e.headers or {}).items()}
+            raise self._api_error(e.code, e.read(), hdrs)
+        except (socket.timeout, builtins.TimeoutError) as e:
+            raise TimeoutError(f"Request timed out after {eff_timeout}s") from e
+        except urllib.error.URLError as e:
+            reason = getattr(e, "reason", e)
+            if isinstance(reason, socket.timeout):
+                raise TimeoutError(f"Request timed out after {eff_timeout}s") from e
+            raise ConnectionError(str(reason)) from e
+        try:
+            yield from _parse_sse(resp)
+        finally:
+            resp.close()
+
+    def _api_error(self, status: int, raw: bytes, headers: Dict[str, str]) -> Any:
+        text = raw.decode("utf-8", errors="replace") if raw else ""
+        ctype = headers.get("content-type", "")
+        if "json" in ctype and text:
+            try:
+                parsed: Any = json.loads(text)
+            except ValueError:
+                parsed = text
+        else:
+            parsed = text or None
+        return api_error_from_status(
+            status,
+            _error_message(parsed, status),
+            request_id=headers.get("x-request-id"),
+            body=parsed,
+            code=_error_code(parsed),
+            headers=headers,
+        )
+
     def _attempt(
         self,
         method: str,
@@ -275,3 +337,28 @@ def _error_code(body: Any) -> Optional[str]:
         if isinstance(err, dict) and isinstance(err.get("code"), str):
             return err["code"]
     return None
+
+
+def _parse_sse(resp):
+    """Yield ``{"event", "data"}`` records from an SSE response stream."""
+    event = None
+    data_lines = []
+    for raw_line in resp:
+        line = raw_line.decode("utf-8", errors="replace").rstrip("\n").rstrip("\r")
+        if line == "":
+            if data_lines:
+                yield {"event": event, "data": "\n".join(data_lines)}
+            event = None
+            data_lines = []
+            continue
+        if line.startswith(":"):
+            continue
+        field, sep, value = line.partition(":")
+        if sep and value.startswith(" "):
+            value = value[1:]
+        if field == "event":
+            event = value
+        elif field == "data":
+            data_lines.append(value)
+    if data_lines:
+        yield {"event": event, "data": "\n".join(data_lines)}

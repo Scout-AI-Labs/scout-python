@@ -26,10 +26,22 @@ class _Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _send_sse(self, frames):
+        self.send_response(200)
+        self.send_header("content-type", "text/event-stream")
+        self.end_headers()
+        self.wfile.write("".join(frames).encode())
+
     def do_POST(self):
         length = int(self.headers.get("content-length", 0))
         body = json.loads(self.rfile.read(length) or b"{}")
-        if self.path == "/v1/search":
+        if self.path == "/v1/chat/completions":
+            self._send_sse([
+                'data: {"choices":[{"delta":{"content":"Hel"}}]}\n\n',
+                'data: {"choices":[{"delta":{"content":"lo"}}]}\n\n',
+                "data: [DONE]\n\n",
+            ])
+        elif self.path == "/v1/search":
             self._send(200, {
                 "ok": True,
                 "auth": self.headers.get("authorization"),
@@ -48,6 +60,13 @@ class _Handler(BaseHTTPRequestHandler):
             self._send(404, {})
 
     def do_GET(self):
+        if self.path.endswith("/events"):
+            self._send_sse([
+                ": keepalive\n\n",
+                'event: run.progress\ndata: {"type":"run.progress","pct":50}\n\n',
+                'event: run.completed\ndata: {"type":"run.completed"}\n\n',
+            ])
+            return
         self._send(200, {"items": [{"id": 1}], "path": self.path})
 
 
@@ -98,6 +117,17 @@ class EndToEndTest(unittest.TestCase):
     def test_pagination_iterates(self):
         items = list(self.client.search.iterate(limit=5))
         self.assertEqual(items, [{"id": 1}])
+
+    def test_chat_stream_yields_deltas(self):
+        chunks = [
+            c["choices"][0]["delta"]["content"]
+            for c in self.client.chat.completions.stream([{"role": "user", "content": "hi"}])
+        ]
+        self.assertEqual(chunks, ["Hel", "lo"])
+
+    def test_stream_events_yields_parsed_events(self):
+        types = [e["type"] for e in self.client.search.stream_events("abc")]
+        self.assertEqual(types, ["run.progress", "run.completed"])
 
 
 if __name__ == "__main__":

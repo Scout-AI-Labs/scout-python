@@ -55,3 +55,7 @@ class Monitors(APIResource):
     def events(self, monitor_id: str) -> Any:
         """Fetch a monitor's events."""
         return self._client.request("GET", f"/v1/monitors/{monitor_id}/events")
+
+    def stream_events(self, monitor_id: str) -> Iterator[Any]:
+        """Stream a monitor's events live (SSE)."""
+        return self._stream_sse(f"/v1/monitors/{monitor_id}/events")

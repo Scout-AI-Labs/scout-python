@@ -46,6 +46,10 @@ class ListRuns(APIResource):
     def events(self, findall_id: str) -> Any:
         return self._client.request("GET", f"/v1/lists/runs/{findall_id}/events")
 
+    def stream_events(self, findall_id: str) -> Iterator[Any]:
+        """Stream a find-all run's progress events live (SSE)."""
+        return self._stream_sse(f"/v1/lists/runs/{findall_id}/events")
+
 
 class Lists(APIResource):
     def __init__(self, client: "Scout") -> None:

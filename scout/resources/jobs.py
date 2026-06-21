@@ -39,6 +39,10 @@ class Jobs(APIResource):
         """Fetch a job's events."""
         return self._client.request("GET", f"/v1/jobs/{task_id}/events")
 
+    def stream_events(self, task_id: str) -> Iterator[Any]:
+        """Stream a job's progress events live (SSE)."""
+        return self._stream_sse(f"/v1/jobs/{task_id}/events")
+
     def start_run(self, **body: Any) -> Any:
         """Start a run for a job."""
         return self._client.request("POST", "/v1/jobs/runs", body=clean_body(body))

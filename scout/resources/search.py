@@ -53,3 +53,7 @@ class Search(APIResource):
     def events(self, search_id: str) -> Any:
         """Fetch the event stream (as JSON) for a search run."""
         return self._client.request("GET", f"/v1/searches/{search_id}/events")
+
+    def stream_events(self, search_id: str) -> Iterator[Any]:
+        """Stream a deep-search run's progress events live (SSE)."""
+        return self._stream_sse(f"/v1/searches/{search_id}/events")

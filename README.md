@@ -130,6 +130,25 @@ for monitor in client.monitors.iterate():
     print(monitor)
 ```
 
+## Streaming
+
+Stream chat completions as OpenAI-style chunks, and stream live progress from async runs (search, jobs, find-all, monitors):
+
+```python
+# Token-by-token chat
+for chunk in client.chat.completions.stream(
+    [{"role": "user", "content": "Summarize the latest EU AI regulation."}],
+    web_search=True,
+):
+    print(chunk["choices"][0]["delta"].get("content", ""), end="", flush=True)
+
+# Live progress events from a deep-search run
+for event in client.search.stream_events(search_id):
+    print(event["type"], event)
+```
+
+`stream_events` is also available on `jobs`, `lists.runs`, and `monitors`.
+
 ## Versioning
 
 This SDK follows [SemVer](https://semver.org/). It pins the Scout API version it targets and sends it on every request; see [`CHANGELOG.md`](./CHANGELOG.md).

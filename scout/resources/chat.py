@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, TYPE_CHECKING
+import json
+from typing import Any, Dict, Iterator, List, TYPE_CHECKING
 
 from ._base import APIResource, clean_body
 
@@ -16,12 +17,23 @@ class ChatCompletions(APIResource):
 
         Shape mirrors the OpenAI Chat Completions API; set ``web_search=True``
         to ground the answer in live results.
-
-        Note: streaming (``stream=True``) returns the raw response envelope in
-        this release - consume ``/v1/chat/completions`` directly for SSE.
         """
         body = clean_body({"messages": messages, **params})
         return self._client.request("POST", "/v1/chat/completions", body=body)
+
+    def stream(self, messages: List[Dict[str, Any]], **params: Any) -> Iterator[Any]:
+        """Stream a chat completion as OpenAI-style ``chat.completion.chunk`` dicts.
+
+        Read token text from ``chunk["choices"][0]["delta"]["content"]``.
+
+            >>> for chunk in client.chat.completions.stream([{"role": "user", "content": "hi"}]):
+            ...     print(chunk["choices"][0]["delta"].get("content", ""), end="")
+        """
+        body = clean_body({"messages": messages, "stream": True, **params})
+        for evt in self._client.stream("POST", "/v1/chat/completions", body=body):
+            if evt["data"] == "[DONE]":
+                return
+            yield json.loads(evt["data"])
 
 
 class Chat(APIResource):
