@@ -1,10 +1,10 @@
 # Scout Python SDK
 
-Official Python SDK for the [Scout](https://usescout.sh) web-intelligence API — search, scrape, screenshot, extract, crawl, and company enrichment.
+Official Python SDK for the [Scout](https://usescout.sh) web-intelligence API: search, scrape, screenshot, extract, crawl, and company enrichment.
 
-- **Zero runtime dependencies.** Built entirely on the Python standard library — no transitive supply chain.
-- **Fully typed.** Ships a `py.typed` marker.
-- **Resilient.** Automatic retries with backoff + jitter, configurable timeouts, idempotency keys.
+- Built on the Python standard library (`urllib`).
+- Typed: ships a `py.typed` marker.
+- Automatic retries with backoff and jitter, configurable timeouts, and idempotency keys on writes.
 
 ## Requirements
 
@@ -18,7 +18,7 @@ pip install scout-sdk
 
 ## Authentication
 
-Create an API key in the [Scout dashboard](https://usescout.sh). The client reads `SCOUT_API_KEY` from the environment by default:
+Generate an API key at [platform.usescout.sh/settings](https://platform.usescout.sh/settings). The client reads `SCOUT_API_KEY` from the environment by default:
 
 ```python
 from scout import Scout
@@ -110,7 +110,7 @@ except ScoutError as err:
 
 ## Retries & timeouts
 
-Transient failures (connection errors, timeouts, 408/409/429/5xx) are retried automatically — **2 times by default**, with exponential backoff + jitter, honoring `Retry-After`. Write methods send an auto-generated `Idempotency-Key` so retries are safe.
+Transient failures (connection errors, timeouts, 408/409/429/5xx) are retried automatically, **2 times by default**, with exponential backoff and jitter, honoring `Retry-After`. Write methods send an auto-generated `Idempotency-Key` so retries are safe.
 
 ```python
 client = Scout(timeout=30.0, max_retries=4)

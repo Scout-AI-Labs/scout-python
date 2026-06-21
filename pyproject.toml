@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "scout-sdk"
 version = "0.1.0"
-description = "Official Python SDK for the Scout web-intelligence API (zero dependencies)"
+description = "Official Python SDK for the Scout web-intelligence API"
 readme = "README.md"
 requires-python = ">=3.8"
 license = { text = "MIT" }

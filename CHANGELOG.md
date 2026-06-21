@@ -7,7 +7,7 @@ to [Semantic Versioning](https://semver.org/).
 
 Initial release.
 
-- Zero-dependency client built on the Python standard library (`urllib`).
+- Client built on the Python standard library (`urllib`).
 - Full coverage of the Scout REST API: `search`, `page`, `extract`, `company`, `lists`, `products`, `site`, `jobs`, `monitors`, `chat`.
 - Typed error hierarchy (`AuthenticationError`, `RateLimitError`, `InsufficientCreditsError`, ...).
 - Automatic retries with exponential backoff + jitter, honoring `Retry-After`.
